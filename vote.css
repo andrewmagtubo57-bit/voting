@@ -171,3 +171,23 @@ footer button:hover{color:var(--text)}
   .logo-text b{font-size:1.5rem}
 }
 @media (prefers-reduced-motion:reduce){.track i,.tile{transition:none}}
+
+/* ===== Heroes in the game ===== */
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:start}
+.rc{background:var(--card);border:1px solid var(--line);border-radius:16px;transition:border-color .2s,background .2s}
+.rc:hover{border-color:var(--accent-d)}
+.rc.open{grid-column:1/-1;background:#5a2447;border-color:var(--accent)}
+.rc-name{display:block;width:100%;font:inherit;font-weight:700;color:var(--text);background:none;border:0;border-radius:16px;padding:12px 14px;cursor:pointer;text-align:center}
+.rc.open .rc-name{text-align:left;color:var(--accent)}
+.rc-name:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+.rc-body{display:none;gap:18px;padding:2px 14px 16px;flex-wrap:wrap}
+.rc.open .rc-body{display:flex}
+.rc-photo{position:relative;flex:none;width:150px;aspect-ratio:3/4;border-radius:14px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(160deg,#A33757,#4C1D3D);border:1px solid var(--line)}
+.rc-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rc-info{flex:1 1 220px;min-width:0;display:grid;gap:10px;align-content:start}
+.rc-info dl{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;font-size:.92rem}
+.rc-info dt{color:var(--muted)}
+.rc-info dd{font-weight:600;overflow-wrap:anywhere}
+.new-tag{justify-self:start;background:var(--accent);color:var(--ink);font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:999px}
+@media (max-width:760px){.roster{grid-template-columns:repeat(2,1fr)}.rc-photo{width:120px}}
+@media (prefers-reduced-motion:reduce){.rc{transition:none}}
