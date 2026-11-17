@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in – Hero Revamp Vote</title>
+<link rel="stylesheet" href="loginform.css">
+</head>
+<body>
+<div class="box">
+
+  <form id="login" novalidate>
+    <div><h1>Log in</h1><p class="sub">Sign in to cast your vote.</p></div>
+    <label>Email<input name="email" type="email" autocomplete="email"></label>
+    <label>Password<span class="pw"><input name="password" type="password" autocomplete="current-password"></span></label>
+    <p class="msg" role="alert"></p>
+    <button type="submit">Log in</button>
+    <div class="links"><a href="#forgot">Forgot password?</a><a href="#register">Create account</a></div>
+  </form>
+
+  <form id="register" novalidate hidden>
+    <div><h1>Create account</h1><p class="sub">One account, one vote.</p></div>
+    <label>Username<input name="username" autocomplete="username"><small class="err" data-for="username"></small></label>
+    <label>Email<input name="email" type="email" autocomplete="email"><small class="err" data-for="email"></small></label>
+    <label>In-game ID<input name="ingameId" inputmode="numeric"><small class="err" data-for="ingameId"></small></label>
+    <label>Mobile number<input name="mobile" type="tel" inputmode="numeric" maxlength="11" placeholder="11 digits" autocomplete="tel"><small class="err" data-for="mobile"></small></label>
+    <label>Gender
+      <select name="gender">
+        <option value="">Choose one</option>
+        <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
+      </select>
+      <small class="err" data-for="gender"></small>
+    </label>
+    <label>Address<input name="address" autocomplete="street-address"><small class="err" data-for="address"></small></label>
+    <label>Server
+      <select name="server"><option value="">Choose your server</option></select>
+      <small class="err" data-for="server"></small>
+    </label>
+    <label>Password<span class="pw"><input name="password" type="password" autocomplete="new-password"></span></label>
+    <ul class="checks" id="checks" aria-live="polite"></ul>
+    <small class="err" data-for="password"></small>
+    <label>Confirm password<span class="pw"><input name="confirm" type="password" autocomplete="new-password"></span>
+      <small class="err" data-for="confirm"></small>
+    </label>
+    <label class="terms"><input name="terms" type="checkbox"><span>I agree to the Terms and Conditions</span></label>
+    <small class="err" data-for="terms"></small>
+    <p class="msg" role="alert"></p>
+    <button type="submit">Create account</button>
+    <div class="links"><a href="#login">Back to log in</a></div>
+  </form>
+
+  <form id="forgot" novalidate hidden>
+    <div><h1>Reset password</h1><p class="sub">We’ll email you a link to choose a new password.</p></div>
+    <label>Email<input name="email" type="email" autocomplete="email"></label>
+    <p class="msg" role="alert"></p>
+    <button type="submit">Send reset link</button>
+    <div class="links"><a href="#login">Back to log in</a></div>
+  </form>
+
+</div>
+
+<script type="module" src="loginform.js"></script>
+</body>
+</html>
