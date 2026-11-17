@@ -1,55 +1,15 @@
-import { onUser, getProfile, logout } from "./firebase.js";
+import {
+  onUser, getProfile, logout, checkAdmin,
+  subscribeVotes, subscribeNext, subscribeVoting, castVote, castNext
+} from "./firebase.js";
+import { HEROES } from "./heroes.js";
+import { buildChart, updateChart } from "./chart.js";
 
-// Edit this list. "image" is the revamped hero and "imageBefore" is the old look.
-// Paste direct image links (.jpg, .png, .webp). Empty or broken images show the first letter instead.
-// The names and changes below are placeholders. Replace them with the real ones.
-const HEROES = [
-  { id: "hero1", name: "Aldric", role: "Fighter", image: "", imageBefore: "",
-    summary: "Heavier combos and a rebuilt ultimate.",
-    changes: [
-      { part: "Skill 1",  before: "Single slash, 6 s cooldown",  revamp: "Triple slash combo, 5 s cooldown" },
-      { part: "Ultimate", before: "Leap with a small impact",    revamp: "Leap that pulls nearby enemies in" },
-      { part: "Look",     before: "Plain steel armor",           revamp: "Armor with glowing runes" }
-    ] },
-  { id: "hero2", name: "Seren", role: "Mage", image: "", imageBefore: "",
-    summary: "Faster casting and a clearer skill kit.",
-    changes: [
-      { part: "Skill 1",  before: "Slow fireball",               revamp: "Quick fireball that splits in two" },
-      { part: "Passive",  before: "Small mana regen",            revamp: "Mana returns after each kill" },
-      { part: "Look",     before: "Dull gray robe",              revamp: "Flowing robe with ember effects" }
-    ] },
-  { id: "hero3", name: "Kaito", role: "Assassin", image: "", imageBefore: "",
-    summary: "A new dash skill and updated visuals.",
-    changes: [
-      { part: "Skill 2",  before: "Short blink",                 revamp: "Dash that resets on a kill" },
-      { part: "Ultimate", before: "Marks one enemy",             revamp: "Marks and strikes up to three enemies" },
-      { part: "Look",     before: "Black cloth outfit",          revamp: "Light armor with a new mask" }
-    ] },
-  { id: "hero4", name: "Mira", role: "Support", image: "", imageBefore: "",
-    summary: "Stronger shields and a new passive.",
-    changes: [
-      { part: "Skill 1",  before: "Shield on one ally",          revamp: "Shield that bounces to a second ally" },
-      { part: "Passive",  before: "None",                        revamp: "Allies nearby heal slowly" },
-      { part: "Look",     before: "Plain white dress",           revamp: "Gold trimmed dress with a staff" }
-    ] }
-];
-
-const KEY = "heroRevampVotes";
-let state = load();
-let openId = null;
 const $ = (s, r) => (r || document).querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-function load() {
-  try {
-    const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && s.counts) return s;
-  } catch (e) {}
-  return { counts: {}, mine: null };
-}
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-}
+let uid = null, openId = null, votingOpen = true;
+let votes = [], nextVotes = [];
 
 function art(h, src, cls) {
   return '<span class="' + cls + '"><span class="initial">' + esc(h.name.charAt(0)) + "</span>" +
@@ -83,14 +43,20 @@ function build() {
       "</div></article>").join("");
 }
 
+const tally = (list, key) => list.reduce((c, v) => { c[v[key]] = (c[v[key]] || 0) + 1; return c; }, {});
+
 function update() {
-  const total = HEROES.reduce((n, h) => n + (state.counts[h.id] || 0), 0);
+  const counts = tally(votes, "heroId");
+  const total = HEROES.reduce((n, h) => n + (counts[h.id] || 0), 0);
+  const mineId = (votes.find(v => v.uid === uid) || {}).heroId || null;
   $("#total").textContent = total;
+  $("#closed").hidden = votingOpen;
+
   HEROES.forEach(h => {
     const card = $('[data-id="' + h.id + '"]', $("#row"));
-    const n = state.counts[h.id] || 0;
+    const n = counts[h.id] || 0;
     const pct = total ? Math.round((n / total) * 100) : 0;
-    const mine = state.mine === h.id;
+    const mine = mineId === h.id;
     card.classList.toggle("open", openId === h.id);
     card.classList.toggle("mine", mine);
     $(".face", card).setAttribute("aria-expanded", openId === h.id);
@@ -99,19 +65,45 @@ function update() {
     $(".n", card).textContent = n + (n === 1 ? " vote" : " votes");
     $(".bar i", card).style.width = pct + "%";
     const b = $(".vote", card);
-    b.textContent = mine ? "Your vote" : (state.mine ? "Switch vote to " : "Vote for ") + h.name;
-    b.disabled = mine;
-    b.classList.toggle("switch", !mine && !!state.mine);
+    b.textContent = mine ? "Your vote" : !votingOpen ? "Voting closed" : (mineId ? "Switch vote to " : "Vote for ") + h.name;
+    b.disabled = mine || !votingOpen;
+    b.classList.toggle("switch", !mine && !!mineId);
+  });
+
+  updateChart($("#chart"), HEROES, counts, mineId);
+
+  // "What do you want to revamp next?"
+  const nc = tally(nextVotes, "choice");
+  const nTotal = Object.values(nc).reduce((a, b) => a + b, 0);
+  const nMine = (nextVotes.find(v => v.uid === uid) || {}).choice || null;
+  document.querySelectorAll(".tile").forEach(t => {
+    const k = t.dataset.choice, n = nc[k] || 0;
+    t.querySelector(".n").textContent = n + (n === 1 ? " vote" : " votes") + " · " + (nTotal ? Math.round((n / nTotal) * 100) : 0) + "%";
+    t.classList.toggle("mine", nMine === k);
+    t.setAttribute("aria-pressed", nMine === k);
+    t.disabled = !votingOpen;
   });
 }
 
-function vote(id) {
-  if (state.mine === id) return;
-  if (state.mine) state.counts[state.mine] = Math.max(0, (state.counts[state.mine] || 0) - 1);
-  state.counts[id] = (state.counts[id] || 0) + 1;
-  state.mine = id;
-  save();
-  update();
+let toastTimer;
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 4000);
+}
+const saveError = e => {
+  console.error(e);
+  toast(e && e.code === "permission-denied" ? "Voting is closed or not allowed for this account." : "Couldn’t save your vote. Try again.");
+};
+
+async function vote(id) {
+  if (!uid || !votingOpen) return;
+  try { await castVote(uid, id); } catch (e) { saveError(e); }
+}
+async function pickNext(choice) {
+  if (!uid || !votingOpen) return;
+  try { await castNext(uid, choice); } catch (e) { saveError(e); }
 }
 
 $("#row").addEventListener("click", e => {
@@ -124,22 +116,48 @@ $("#row").addEventListener("click", e => {
     update();
   }
 });
-
-$("#reset").addEventListener("click", () => {
-  state = { counts: {}, mine: null };
-  save();
-  update();
+$("#nextRow").addEventListener("click", e => {
+  const t = e.target.closest(".tile");
+  if (t) pickNext(t.dataset.choice);
 });
 
+/* ---------- Profile (top right) ---------- */
+const FIELDS = [["Username", "username"], ["Email", "email"], ["In-game ID", "ingameId"], ["Mobile", "mobile"],
+                ["Gender", "gender"], ["Address", "address"], ["Server", "server"]];
+const btn = $("#profileBtn"), pop = $("#profilePop");
+function setPop(open) { pop.hidden = !open; btn.setAttribute("aria-expanded", open); }
+btn.addEventListener("click", e => { e.stopPropagation(); setPop(pop.hidden); });
+document.addEventListener("click", e => { if (!pop.hidden && !pop.contains(e.target)) setPop(false); });
+addEventListener("keydown", e => { if (e.key === "Escape") setPop(false); });
+$("#logout").addEventListener("click", () => logout());
+
+function fillProfile(user, profile) {
+  const data = Object.assign({ email: user.email }, profile || {});
+  const name = data.username || user.email;
+  $("#avatarLetter").textContent = name.charAt(0).toUpperCase();
+  $("#pName").textContent = name;
+  $("#pData").innerHTML = FIELDS.filter(f => data[f[1]])
+    .map(f => "<dt>" + f[0] + "</dt><dd>" + esc(data[f[1]]) + "</dd>").join("");
+}
+
+/* ---------- Start ---------- */
+buildChart($("#chart"), HEROES);
 build();
 update();
 
-
+let started = false;
 // Only signed-in users see the vote page; everyone else goes to the login page.
 onUser(async user => {
   if (!user) { location.replace("loginform.html"); return; }
-  const profile = await getProfile(user.uid).catch(() => null);
-  document.getElementById("who").textContent = profile ? profile.username : user.email;
-  document.querySelector(".wrap").hidden = false;
+  uid = user.uid;
+  const [profile, admin] = await Promise.all([getProfile(uid).catch(() => null), checkAdmin(uid).catch(() => false)]);
+  fillProfile(user, profile);
+  $("#adminLink").hidden = !admin;
+  $(".wrap").hidden = false;
+  if (started) return;
+  started = true;
+  const fail = e => { console.error(e); toast("Couldn’t load live votes. Check your Firestore rules."); };
+  subscribeVoting(open => { votingOpen = open; update(); }, fail);
+  subscribeVotes(v => { votes = v; update(); }, fail);
+  subscribeNext(v => { nextVotes = v; update(); }, fail);
 });
-document.getElementById("logout").addEventListener("click", () => logout());
