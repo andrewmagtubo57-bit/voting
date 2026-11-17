@@ -24,23 +24,28 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 /* ---------- Validation rules (edit here) ---------- */
-export function passwordProblem(p) {
-  if (p.length < 8) return "Use at least 8 characters.";
-  if (!/[A-Za-z]/.test(p) || !/[0-9]/.test(p)) return "Include at least one letter and one number.";
-  return "";
-}
+export const SERVERS = ["Philippines", "China", "South America", "North America", "Indonesia"];
+
+// Password checklist: each rule is shown as a line and ticked live as the user types.
+export const PASSWORD_RULES = [
+  { label: "At least 8 characters",        test: (p) => p.length >= 8 },
+  { label: "Contains a letter",            test: (p) => /[A-Za-z]/.test(p) },
+  { label: "Contains a number",            test: (p) => /[0-9]/.test(p) },
+  { label: "Passwords match",              test: (p, c) => p.length > 0 && p === c }
+];
 
 export function validateRegister(d) {
   const errors = {};
   if (!/^[A-Za-z0-9_]{3,20}$/.test(d.username)) errors.username = "Use 3–20 letters, numbers or underscores.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) errors.email = "Enter a valid email address.";
-  if (!d.birthday) errors.birthday = "Enter your birthday.";
-  else if (new Date(d.birthday) > new Date()) errors.birthday = "Birthday can’t be in the future.";
-  if (!/^\+?[0-9]{10,13}$/.test(d.mobile.replace(/[\s-]/g, ""))) errors.mobile = "Enter a valid mobile number (10–13 digits).";
+  if (!/^[0-9]{5,20}$/.test(d.ingameId)) errors.ingameId = "Enter your in-game ID (numbers only).";
+  if (!/^[0-9]{11}$/.test(d.mobile)) errors.mobile = "Mobile number must be exactly 11 digits.";
   if (!d.gender) errors.gender = "Choose an option.";
-  const pw = passwordProblem(d.password);
-  if (pw) errors.password = pw;
+  if (d.address.length < 5) errors.address = "Enter your address.";
+  if (!SERVERS.includes(d.server)) errors.server = "Choose your server.";
+  if (!PASSWORD_RULES.every(r => r.test(d.password, d.confirm))) errors.password = "Your password doesn’t meet all the requirements.";
   if (d.password !== d.confirm) errors.confirm = "Passwords don’t match.";
+  if (!d.terms) errors.terms = "You must agree to the Terms and Conditions.";
   return errors;
 }
 
@@ -57,9 +62,12 @@ export async function registerUser(d) {
       tx.set(doc(db, "users", uid), {
         username: d.username,
         email: d.email,
-        birthday: d.birthday,
-        mobile: d.mobile.replace(/[\s-]/g, ""),
+        ingameId: d.ingameId,
+        mobile: d.mobile,
         gender: d.gender,
+        address: d.address,
+        server: d.server,
+        agreedToTerms: true,
         createdAt: serverTimestamp()
       });
     });
