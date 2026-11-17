@@ -1,5 +1,5 @@
 import {
-  onUser, validateRegister, registerUser, loginUser, resetPassword, friendlyError
+  onUser, validateRegister, registerUser, loginUser, resetPassword, friendlyError, PASSWORD_RULES, SERVERS
 } from "./firebase.js";
 
 const $ = s => document.querySelector(s);
@@ -32,26 +32,30 @@ document.addEventListener("click", e => {
 
 /* ---------- Create account form ---------- */
 const rf = $("#register");
+rf.server.insertAdjacentHTML("beforeend", SERVERS.map(s => "<option>" + s + "</option>").join(""));
 
+// Password checklist: one line per rule, ticked live as you type
+const checks = $("#checks");
+checks.innerHTML = PASSWORD_RULES.map(r => "<li>" + r.label + "</li>").join("");
+function updateChecks() {
+  [...checks.children].forEach((li, i) => li.classList.toggle("ok", PASSWORD_RULES[i].test(rf.password.value, rf.confirm.value)));
+  rf.querySelector('[data-for="confirm"]').textContent =
+    rf.confirm.value && rf.confirm.value !== rf.password.value ? "Passwords don’t match." : "";
+}
 rf.addEventListener("input", e => {
-  if (e.target.name === "mobile") e.target.value = e.target.value.replace(/[^\d+]/g, "").slice(0, 13);
-  if (e.target.name === "confirm" || e.target.name === "password") {
-    rf.querySelector('[data-for="confirm"]').textContent =
-      rf.confirm.value && rf.confirm.value !== rf.password.value ? "Passwords don’t match." : "";
-  }
+  if (e.target.name === "mobile") e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11); // digits only, max 11
+  if (e.target.name === "ingameId") e.target.value = e.target.value.replace(/\D/g, "");
+  if (e.target.name === "password" || e.target.name === "confirm") updateChecks();
 });
+updateChecks();
 
 rf.addEventListener("submit", async e => {
   e.preventDefault();
   const btn = rf.querySelector("[type=submit]");
   const d = {
-    username: rf.username.value.trim(),
-    email: rf.email.value.trim(),
-    birthday: rf.birthday.value,
-    mobile: rf.mobile.value.trim(),
-    gender: rf.gender.value,
-    password: rf.password.value,
-    confirm: rf.confirm.value
+    username: rf.username.value.trim(), email: rf.email.value.trim(), ingameId: rf.ingameId.value.trim(),
+    mobile: rf.mobile.value.trim(), gender: rf.gender.value, address: rf.address.value.trim(),
+    server: rf.server.value, password: rf.password.value, confirm: rf.confirm.value, terms: rf.terms.checked
   };
   const errors = validateRegister(d);
   showErrors(rf, errors);
