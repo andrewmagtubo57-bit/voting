@@ -22,8 +22,8 @@
     <div><h1>Create account</h1><p class="sub">One account, one vote.</p></div>
     <label>Username<input name="username" autocomplete="username"><small class="err" data-for="username"></small></label>
     <label>Email<input name="email" type="email" autocomplete="email"><small class="err" data-for="email"></small></label>
-    <label>Birthday<input name="birthday" type="date"><small class="err" data-for="birthday"></small></label>
-    <label>Mobile number<input name="mobile" type="tel" autocomplete="tel"><small class="err" data-for="mobile"></small></label>
+    <label>In-game ID<input name="ingameId" inputmode="numeric"><small class="err" data-for="ingameId"></small></label>
+    <label>Mobile number<input name="mobile" type="tel" inputmode="numeric" maxlength="11" placeholder="11 digits" autocomplete="tel"><small class="err" data-for="mobile"></small></label>
     <label>Gender
       <select name="gender">
         <option value="">Choose one</option>
@@ -31,13 +31,19 @@
       </select>
       <small class="err" data-for="gender"></small>
     </label>
-    <label>Password<span class="pw"><input name="password" type="password" autocomplete="new-password"></span>
-      <small class="hint">At least 8 characters, with a letter and a number.</small>
-      <small class="err" data-for="password"></small>
+    <label>Address<input name="address" autocomplete="street-address"><small class="err" data-for="address"></small></label>
+    <label>Server
+      <select name="server"><option value="">Choose your server</option></select>
+      <small class="err" data-for="server"></small>
     </label>
+    <label>Password<span class="pw"><input name="password" type="password" autocomplete="new-password"></span></label>
+    <ul class="checks" id="checks" aria-live="polite"></ul>
+    <small class="err" data-for="password"></small>
     <label>Confirm password<span class="pw"><input name="confirm" type="password" autocomplete="new-password"></span>
       <small class="err" data-for="confirm"></small>
     </label>
+    <label class="terms"><input name="terms" type="checkbox"><span>I agree to the Terms and Conditions</span></label>
+    <small class="err" data-for="terms"></small>
     <p class="msg" role="alert"></p>
     <button type="submit">Create account</button>
     <div class="links"><a href="#login">Back to log in</a></div>
