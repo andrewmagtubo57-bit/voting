@@ -10,7 +10,7 @@ export const ROSTER = [
   { name: "Kaito",  cls: "Assassin", college: "CICS",            power: "Camouflage",        image: pick("hero3", "image"), before: pick("hero3", "imageBefore") },
   { name: "Mira",   cls: "Support",  college: "COM (Midwifery)", power: "Shield maker",      image: pick("hero4", "image"), before: pick("hero4", "imageBefore") },
   // New to the list. Replace "0" with the real name and set the photo file name.
-  { name: "Taniel",   cls: "Marksman",            college: "CIT",              power: "Gun maker",          image: "taniel.png", isNew: true },
-  { name: "Regor",   cls: "Marksman / Assassin", college: "COE",              power: "Werewolf morphing",  image: "regor.png", isNew: true },
-  { name: "Janice", cls: "Mage",                college: "COM (Management)", power: "Metal manipulation", image: "janice.png", isNew: true }
+  { name: "0 (male)",   cls: "Marksman",            college: "CIT",              power: "Gun maker",          image: "taniel.png", isNew: true },
+  { name: "0 (male)",   cls: "Marksman / Assassin", college: "COE",              power: "Werewolf morphing",  image: "regor.png", isNew: true },
+  { name: "0 (female)", cls: "Mage",                college: "COM (Management)", power: "Metal manipulation", image: "janice.png", isNew: true }
 ];
