@@ -3,16 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hero Revamp Vote</title>
+<title>Hero Revamp Vote – NISU Legends</title>
 <link rel="stylesheet" href="vote.css">
 </head>
 <body>
 <div class="wrap" hidden>
-  <div class="userbar">
-    <span>Signed in as <b id="who"></b></span>
-    <button id="logout" type="button">Log out</button>
-  </div>
 
+  <header class="topbar">
+    <a class="logo" href="vote.html" aria-label="NISU Legends">
+      <svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB894"/><stop offset="1" stop-color="#DC586D"/></linearGradient></defs>
+        <path d="M24 2 43 12v24L24 46 5 36V12z" fill="url(#lg)"/>
+        <path d="M24 6.5 39.5 14.5v19L24 41.5 8.5 33.5v-19z" fill="#4C1D3D"/>
+        <path d="M16.5 32.5v-17l15 17v-17" fill="none" stroke="#FFB894" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text"><b>NISU</b><small>LEGENDS</small></span>
+    </a>
+
+    <div class="profile">
+      <button id="profileBtn" class="avatar" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="profilePop" aria-label="Open profile">
+        <span id="avatarLetter">?</span>
+      </button>
+      <div class="pop" id="profilePop" hidden>
+        <div class="pop-head"><b id="pName"></b><small>My profile</small></div>
+        <dl id="pData"></dl>
+        <a class="pop-link" id="adminLink" href="admin.html" hidden>Open admin panel</a>
+        <button id="logout" type="button">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="banner" id="closed" role="status" hidden>Voting is closed. You can still see the results below.</p>
+
+  <!-- Candidates -->
   <section class="stage" aria-label="Hero revamp voting">
     <div class="stage-head">
       <div>
@@ -24,158 +47,45 @@
     <div class="row" id="row"></div>
   </section>
 
-  <footer>
-    Votes are saved in this browser only, for now.
-    <button id="reset" type="button">Reset all votes</button>
-  </footer>
+  <!-- Bar graph -->
+  <section class="stage" aria-label="Votes chart">
+    <div class="stage-head">
+      <div>
+        <h2 class="title">Votes chart</h2>
+        <p>Live results. Updates as people vote.</p>
+      </div>
+    </div>
+    <div class="chart" id="chart" role="img" aria-label="Votes per hero"></div>
+  </section>
+
+  <!-- What next -->
+  <section class="stage" aria-label="What to revamp next">
+    <div class="stage-head">
+      <div>
+        <h2 class="title">What do you want to revamp next?</h2>
+        <p>Pick one. You can change it until voting closes.</p>
+      </div>
+    </div>
+    <div class="tiles" id="nextRow">
+      <button class="tile" type="button" data-choice="hero" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+        <b>HERO</b><small class="n">0 votes</small>
+      </button>
+      <button class="tile" type="button" data-choice="weapons" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></svg>
+        <b>WEAPONS</b><small class="n">0 votes</small>
+      </button>
+      <button class="tile" type="button" data-choice="events" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <b>EVENTS</b><small class="n">0 votes</small>
+      </button>
+    </div>
+  </section>
+
+  <footer>One vote per account. You can switch your vote until voting closes.</footer>
 </div>
 
-<script>
-// Edit this list. "image" is the revamped hero and "imageBefore" is the old look.
-// Paste direct image links (.jpg, .png, .webp). Empty or broken images show the first letter instead.
-// The names and changes below are placeholders. Replace them with the real ones.
-const HEROES = [
-  { id: "hero1", name: "Aldric", role: "Fighter", image: "", imageBefore: "",
-    summary: "Heavier combos and a rebuilt ultimate.",
-    changes: [
-      { part: "Skill 1",  before: "Single slash, 6 s cooldown",  revamp: "Triple slash combo, 5 s cooldown" },
-      { part: "Ultimate", before: "Leap with a small impact",    revamp: "Leap that pulls nearby enemies in" },
-      { part: "Look",     before: "Plain steel armor",           revamp: "Armor with glowing runes" }
-    ] },
-  { id: "hero2", name: "Seren", role: "Mage", image: "", imageBefore: "",
-    summary: "Faster casting and a clearer skill kit.",
-    changes: [
-      { part: "Skill 1",  before: "Slow fireball",               revamp: "Quick fireball that splits in two" },
-      { part: "Passive",  before: "Small mana regen",            revamp: "Mana returns after each kill" },
-      { part: "Look",     before: "Dull gray robe",              revamp: "Flowing robe with ember effects" }
-    ] },
-  { id: "hero3", name: "Kaito", role: "Assassin", image: "", imageBefore: "",
-    summary: "A new dash skill and updated visuals.",
-    changes: [
-      { part: "Skill 2",  before: "Short blink",                 revamp: "Dash that resets on a kill" },
-      { part: "Ultimate", before: "Marks one enemy",             revamp: "Marks and strikes up to three enemies" },
-      { part: "Look",     before: "Black cloth outfit",          revamp: "Light armor with a new mask" }
-    ] },
-  { id: "hero4", name: "Mira", role: "Support", image: "", imageBefore: "",
-    summary: "Stronger shields and a new passive.",
-    changes: [
-      { part: "Skill 1",  before: "Shield on one ally",          revamp: "Shield that bounces to a second ally" },
-      { part: "Passive",  before: "None",                        revamp: "Allies nearby heal slowly" },
-      { part: "Look",     before: "Plain white dress",           revamp: "Gold trimmed dress with a staff" }
-    ] }
-];
-
-const KEY = "heroRevampVotes";
-let state = load();
-let openId = null;
-const $ = (s, r) => (r || document).querySelector(s);
-const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-function load() {
-  try {
-    const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && s.counts) return s;
-  } catch (e) {}
-  return { counts: {}, mine: null };
-}
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-}
-
-function art(h, src, cls) {
-  return '<span class="' + cls + '"><span class="initial">' + esc(h.name.charAt(0)) + "</span>" +
-    (src ? '<img src="' + esc(src) + '" alt="" onerror="this.remove()">' : "") + "</span>";
-}
-
-// Build the cards once, then update() only changes classes and numbers, so the expand animation stays smooth.
-function build() {
-  $("#row").innerHTML = HEROES.map(h =>
-    '<article class="card" data-id="' + h.id + '">' +
-      '<button class="face" type="button" aria-expanded="false" aria-controls="d-' + h.id + '">' +
-        art(h, h.image, "art") +
-        '<span class="badge">Your vote</span>' +
-        '<span class="cap"><b>' + esc(h.name) + "</b><small>" + esc(h.role) + '</small><em class="pct">0%</em></span>' +
-      "</button>" +
-      '<div class="detail" id="d-' + h.id + '">' +
-        "<h2>" + esc(h.name) + " <small>" + esc(h.role) + "</small></h2>" +
-        '<p class="sum">' + esc(h.summary) + "</p>" +
-        '<div class="looks">' +
-          "<figure>" + art(h, h.imageBefore, "thumb") + "<figcaption>Before</figcaption></figure>" +
-          "<figure>" + art(h, h.image, "thumb") + "<figcaption>Revamp</figcaption></figure>" +
-        "</div>" +
-        '<div class="changes"><div class="th"></div><div class="th">Before</div><div class="th">Revamp</div>' +
-          h.changes.map(c =>
-            '<div class="part">' + esc(c.part) + '</div><div data-l="Before">' + esc(c.before) +
-            '</div><div class="new" data-l="Revamp">' + esc(c.revamp) + "</div>").join("") +
-        "</div>" +
-        '<div class="tally"><div class="bar"><i></i></div>' +
-          '<div class="stat"><b class="p">0%</b><span class="n">0 votes</span></div>' +
-          '<button class="vote" type="button" data-id="' + h.id + '"></button></div>' +
-      "</div></article>").join("");
-}
-
-function update() {
-  const total = HEROES.reduce((n, h) => n + (state.counts[h.id] || 0), 0);
-  $("#total").textContent = total;
-  HEROES.forEach(h => {
-    const card = $('[data-id="' + h.id + '"]', $("#row"));
-    const n = state.counts[h.id] || 0;
-    const pct = total ? Math.round((n / total) * 100) : 0;
-    const mine = state.mine === h.id;
-    card.classList.toggle("open", openId === h.id);
-    card.classList.toggle("mine", mine);
-    $(".face", card).setAttribute("aria-expanded", openId === h.id);
-    $(".pct", card).textContent = pct + "%";
-    $(".p", card).textContent = pct + "%";
-    $(".n", card).textContent = n + (n === 1 ? " vote" : " votes");
-    $(".bar i", card).style.width = pct + "%";
-    const b = $(".vote", card);
-    b.textContent = mine ? "Your vote" : (state.mine ? "Switch vote to " : "Vote for ") + h.name;
-    b.disabled = mine;
-    b.classList.toggle("switch", !mine && !!state.mine);
-  });
-}
-
-function vote(id) {
-  if (state.mine === id) return;
-  if (state.mine) state.counts[state.mine] = Math.max(0, (state.counts[state.mine] || 0) - 1);
-  state.counts[id] = (state.counts[id] || 0) + 1;
-  state.mine = id;
-  save();
-  update();
-}
-
-$("#row").addEventListener("click", e => {
-  const v = e.target.closest(".vote");
-  if (v) return vote(v.dataset.id);
-  const f = e.target.closest(".face");
-  if (f) {
-    const id = f.closest(".card").dataset.id;
-    openId = openId === id ? null : id;
-    update();
-  }
-});
-
-$("#reset").addEventListener("click", () => {
-  state = { counts: {}, mine: null };
-  save();
-  update();
-});
-
-build();
-update();
-</script>
-<script type="module">
-import { onUser, getProfile, logout } from "./firebase.js";
-
-// Only signed-in users see the vote page; everyone else goes to the login page.
-onUser(async user => {
-  if (!user) { location.replace("auth.html"); return; }
-  const profile = await getProfile(user.uid).catch(() => null);
-  document.getElementById("who").textContent = profile ? profile.username : user.email;
-  document.querySelector(".wrap").hidden = false;
-});
-document.getElementById("logout").addEventListener("click", () => logout());
-</script>
+<p class="toast" id="toast" role="status" hidden></p>
+<script type="module" src="vote.js"></script>
 </body>
 </html>
