@@ -9,13 +9,27 @@
 </head>
 <body>
 
+<!-- Admin login (this site has its own sign-in) -->
+<div class="wrap" id="login" hidden>
+  <section class="stage denied">
+    <h1>Admin login</h1>
+    <p>Sign in with your admin account.</p>
+    <form id="loginForm" novalidate>
+      <label>Email<input name="email" type="email" autocomplete="email"></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password"></label>
+      <p class="banner" id="loginMsg" role="alert" hidden></p>
+      <button class="btn primary" type="submit">Log in</button>
+    </form>
+  </section>
+</div>
+
 <!-- Shown to signed-in users who are not admins -->
 <div class="wrap" id="denied" hidden>
   <section class="stage denied">
     <h1>Admins only</h1>
     <p>This account isn’t an admin. To make it one, open Firebase Console → Firestore → create the collection <b>admins</b> and add a document whose ID is the UID below.</p>
     <p class="uid" id="deniedUid"></p>
-    <div class="nav"><a class="btn primary" href="vote.html">Back to voting</a><button class="btn" id="logout2" type="button">Log out</button></div>
+    <div class="nav"><a class="btn primary" id="votingLink2" href="#" hidden>Back to voting</a><button class="btn" id="logout2" type="button">Log out</button></div>
   </section>
 </div>
 
@@ -32,7 +46,7 @@
       <span class="tag">Admin</span>
     </div>
     <div class="nav">
-      <a class="btn" href="vote.html">Voting page</a>
+      <a class="btn" id="votingLink" href="#" hidden>Voting page</a>
       <button class="btn" id="logout" type="button">Log out</button>
     </div>
   </header>
@@ -48,6 +62,15 @@
     <div class="nav">
       <button class="btn primary" id="toggle" type="button">Turn voting OFF</button>
       <button class="btn danger" id="reset" type="button">Reset all votes</button>
+    </div>
+    <div class="deadline">
+      <label for="deadline">Voting closes at (your local time)</label>
+      <div class="nav">
+        <input id="deadline" class="search" type="datetime-local">
+        <button class="btn primary" id="saveDeadline" type="button">Save deadline</button>
+        <button class="btn" id="clearDeadline" type="button">Remove deadline</button>
+      </div>
+      <p class="muted" id="deadlineInfo">No deadline set.</p>
     </div>
   </section>
 
