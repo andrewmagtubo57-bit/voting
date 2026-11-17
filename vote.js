@@ -1,114 +1,263 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hero Revamp Vote – NISU Legends</title>
-<link rel="stylesheet" href="vote.css">
-</head>
-<body>
-<div class="wrap" hidden>
+import {
+  onUser, getProfile, logout, checkAdmin,
+  subscribeVotes, subscribeNext, subscribeVoting, castVote, castNext
+} from "./firebase.js";
+import { HEROES } from "./heroes.js";
+import { buildChart, updateChart } from "./chart.js";
+import { ROSTER } from "./roster.js";
+import { fmtDate, fmtLeft } from "./time.js";
 
-  <header class="topbar">
-    <a class="logo" href="vote.html" aria-label="NISU Legends">
-      <svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB894"/><stop offset="1" stop-color="#DC586D"/></linearGradient></defs>
-        <path d="M24 2 43 12v24L24 46 5 36V12z" fill="url(#lg)"/>
-        <path d="M24 6.5 39.5 14.5v19L24 41.5 8.5 33.5v-19z" fill="#4C1D3D"/>
-        <path d="M16.5 32.5v-17l15 17v-17" fill="none" stroke="#FFB894" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="logo-text"><b>NISU</b><small>LEGENDS</small></span>
-    </a>
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-    <div class="profile">
-      <button id="profileBtn" class="avatar" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="profilePop" aria-label="Open profile">
-        <span id="avatarLetter">?</span>
-      </button>
-      <div class="pop" id="profilePop" hidden>
-        <div class="pop-head"><b id="pName"></b><small>My profile</small></div>
-        <dl id="pData"></dl>
-        <a class="pop-link" id="adminLink" href="admin.html" hidden>Open admin panel</a>
-        <button id="logout" type="button">Log out</button>
-      </div>
-    </div>
-  </header>
+let uid = null, openId = null;
+let voting = { open: true, closesAt: null }; // from Firestore (set by the admin)
+let votingOpen = true;                        // open switch AND the deadline not passed
+let votes = [], nextVotes = [];
 
-  <p class="banner" id="closed" role="status" hidden>Voting is closed. You can still see the results below.</p>
+const computeOpen = () => voting.open && (!voting.closesAt || Date.now() < voting.closesAt.getTime());
 
-  <!-- Candidates -->
-  <section class="stage" aria-label="Hero revamp voting">
-    <div class="stage-head">
-      <div>
-        <h1>Which hero should get the revamp?</h1>
-        <p class="countdown" id="countdown" role="timer" hidden>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          <span id="cdText"></span>
-        </p>
-        <p>Select a hero to compare what changed, then cast your vote.</p>
-      </div>
-      <div class="total"><b id="total">0</b>votes cast</div>
-    </div>
-    <div class="row" id="row"></div>
-  </section>
+function art(h, src, cls) {
+  return '<span class="' + cls + '"><span class="initial">' + esc(h.name.charAt(0)) + "</span>" +
+    (src ? '<img src="' + esc(src) + '" alt="" onerror="this.remove()">' : "") + "</span>";
+}
+const zoomBtn = (h, which, src, label) =>
+  '<button class="zoom" type="button" data-id="' + h.id + '" data-which="' + which + '" aria-label="Enlarge ' + label.toLowerCase() + " picture of " + esc(h.name) + '">' +
+  art(h, src, "thumb") + "</button>";
 
-  <!-- Bar graph -->
-  <section class="stage" aria-label="Votes chart">
-    <div class="stage-head">
-      <div>
-        <h2 class="title">Votes chart</h2>
-        <p>Live results. Updates as people vote.</p>
-      </div>
-    </div>
-    <div class="chart" id="chart" role="img" aria-label="Votes per hero"></div>
-  </section>
+// Build the cards once, then update() only changes classes and numbers, so the expand animation stays smooth.
+function build() {
+  $("#row").innerHTML = HEROES.map(h =>
+    '<article class="card" data-id="' + h.id + '">' +
+      '<button class="face" type="button" aria-expanded="false" aria-controls="d-' + h.id + '">' +
+        art(h, h.image, "art") +
+        '<span class="badge">Your vote</span>' +
+        '<span class="cap"><b>' + esc(h.name) + "</b><small>" + esc(h.role) + '</small><em class="pct">0%</em></span>' +
+      "</button>" +
+      '<div class="detail" id="d-' + h.id + '">' +
+        "<h2>" + esc(h.name) + " <small>" + esc(h.role) + "</small></h2>" +
+        '<p class="sum">' + esc(h.summary) + "</p>" +
+        '<div class="looks">' +
+          "<figure>" + zoomBtn(h, "before", h.imageBefore, "Before") + "<figcaption>Before</figcaption></figure>" +
+          "<figure>" + zoomBtn(h, "revamp", h.image, "Revamp") + "<figcaption>Revamp</figcaption></figure>" +
+          '<span class="zoom-hint">Click a picture to enlarge</span>' +
+        "</div>" +
+        '<div class="changes"><div class="th"></div><div class="th">Before</div><div class="th">Revamp</div>' +
+          h.changes.map(c =>
+            '<div class="part">' + esc(c.part) + '</div><div data-l="Before">' + esc(c.before) +
+            '</div><div class="new" data-l="Revamp">' + esc(c.revamp) + "</div>").join("") +
+        "</div>" +
+        '<div class="tally"><div class="bar"><i></i></div>' +
+          '<div class="stat"><b class="p">0%</b><span class="n">0 votes</span></div>' +
+          '<button class="vote" type="button" data-id="' + h.id + '"></button></div>' +
+      "</div></article>").join("");
+}
 
-  <!-- What next -->
-  <section class="stage" aria-label="What to revamp next">
-    <div class="stage-head">
-      <div>
-        <h2 class="title">What do you want to revamp next?</h2>
-        <p>Pick one. You can change it until voting closes.</p>
-      </div>
-    </div>
-    <div class="tiles" id="nextRow">
-      <button class="tile" type="button" data-choice="hero" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-        <b>HERO</b><small class="n">0 votes</small>
-      </button>
-      <button class="tile" type="button" data-choice="weapons" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></svg>
-        <b>WEAPONS</b><small class="n">0 votes</small>
-      </button>
-      <button class="tile" type="button" data-choice="events" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        <b>EVENTS</b><small class="n">0 votes</small>
-      </button>
-    </div>
-  </section>
+const tally = (list, key) => list.reduce((c, v) => { c[v[key]] = (c[v[key]] || 0) + 1; return c; }, {});
 
-  <!-- Heroes in the game -->
-  <section class="stage" aria-label="Heroes in the game">
-    <div class="stage-head">
-      <div>
-        <h2 class="title">Heroes in the game</h2>
-        <p>Tap a name to see the hero’s photo and details.</p>
-      </div>
-    </div>
-    <div class="roster" id="roster"></div>
-  </section>
+function update() {
+  const counts = tally(votes, "heroId");
+  const total = HEROES.reduce((n, h) => n + (counts[h.id] || 0), 0);
+  const mineId = (votes.find(v => v.uid === uid) || {}).heroId || null;
+  $("#total").textContent = total;
+  $("#closed").hidden = votingOpen;
 
-  <footer>One vote per account. You can switch your vote until voting closes.</footer>
-</div>
+  HEROES.forEach(h => {
+    const card = $('[data-id="' + h.id + '"]', $("#row"));
+    const n = counts[h.id] || 0;
+    const pct = total ? Math.round((n / total) * 100) : 0;
+    const mine = mineId === h.id;
+    card.classList.toggle("open", openId === h.id);
+    card.classList.toggle("mine", mine);
+    $(".face", card).setAttribute("aria-expanded", openId === h.id);
+    $(".pct", card).textContent = pct + "%";
+    $(".p", card).textContent = pct + "%";
+    $(".n", card).textContent = n + (n === 1 ? " vote" : " votes");
+    $(".bar i", card).style.width = pct + "%";
+    const b = $(".vote", card);
+    b.textContent = mine ? "Your vote" : !votingOpen ? "Voting closed" : (mineId ? "Switch vote to " : "Vote for ") + h.name;
+    b.disabled = mine || !votingOpen;
+    b.classList.toggle("switch", !mine && !!mineId);
+  });
 
-<!-- Big picture viewer -->
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lbTitle" hidden>
-  <div class="lb-card">
-    <div class="lb-head"><h3 id="lbTitle"></h3><button class="lb-close" id="lbClose" type="button" aria-label="Close">&times;</button></div>
-    <div class="lb-body" id="lbBody"></div>
-  </div>
-</div>
+  updateChart($("#chart"), HEROES, counts, mineId);
 
-<p class="toast" id="toast" role="status" hidden></p>
-<script type="module" src="vote.js"></script>
-</body>
-</html>
+  // "What do you want to revamp next?"
+  const nc = tally(nextVotes, "choice");
+  const nTotal = Object.values(nc).reduce((a, b) => a + b, 0);
+  const nMine = (nextVotes.find(v => v.uid === uid) || {}).choice || null;
+  document.querySelectorAll(".tile").forEach(t => {
+    const k = t.dataset.choice, n = nc[k] || 0;
+    t.querySelector(".n").textContent = n + (n === 1 ? " vote" : " votes") + " · " + (nTotal ? Math.round((n / nTotal) * 100) : 0) + "%";
+    t.classList.toggle("mine", nMine === k);
+    t.setAttribute("aria-pressed", nMine === k);
+    t.disabled = !votingOpen;
+  });
+}
+
+/* ---------- Countdown (deadline is set by the admin) ---------- */
+function renderCountdown() {
+  const el = $("#countdown");
+  if (!voting.closesAt || !voting.open) { el.hidden = true; return; } // no deadline, or voting was switched off
+  const ms = voting.closesAt.getTime() - Date.now();
+  $("#cdText").textContent = ms > 0
+    ? "The voting will close in " + fmtLeft(ms) + " (" + fmtDate(voting.closesAt) + ")"
+    : "Voting closed on " + fmtDate(voting.closesAt);
+  el.hidden = false;
+}
+function refreshVoting() { votingOpen = computeOpen(); update(); renderCountdown(); }
+setInterval(() => {
+  const o = computeOpen();
+  if (o !== votingOpen) { votingOpen = o; update(); }
+  renderCountdown();
+}, 1000);
+
+/* ---------- Messages ---------- */
+let toastTimer;
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text; t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 4000);
+}
+const saveError = e => {
+  console.error(e);
+  toast(e && e.code === "permission-denied" ? "Voting is closed or not allowed for this account." : "Couldn’t save your vote. Try again.");
+};
+
+async function vote(id) {
+  if (!uid || !votingOpen) return;
+  try { await castVote(uid, id); } catch (e) { saveError(e); }
+}
+async function pickNext(choice) {
+  if (!uid || !votingOpen) return;
+  try { await castNext(uid, choice); } catch (e) { saveError(e); }
+}
+
+/* ---------- Big picture viewer ---------- */
+const initial = n => (/^[A-Za-z]/.test(n) ? n.charAt(0).toUpperCase() : "?");
+let lbReturn = null;
+function openLightbox(title, items) {
+  lbReturn = document.activeElement;
+  $("#lbTitle").textContent = title;
+  $("#lbBody").innerHTML = items.map(it =>
+    "<figure><span class=\"big\"><span class=\"initial\">" + initial(it.name) + "</span>" +
+    (it.src ? '<img src="' + esc(it.src) + '" alt="' + esc(it.name + " – " + it.caption) + '" onerror="this.remove()">' : "") +
+    "</span><figcaption>" + esc(it.caption) + "</figcaption></figure>").join("");
+  $("#lightbox").hidden = false;
+  document.body.classList.add("noscroll");
+  $("#lbClose").focus();
+}
+function closeLightbox() {
+  if ($("#lightbox").hidden) return;
+  $("#lightbox").hidden = true;
+  document.body.classList.remove("noscroll");
+  if (lbReturn && lbReturn.focus) lbReturn.focus();
+}
+$("#lbClose").addEventListener("click", closeLightbox);
+$("#lightbox").addEventListener("click", e => { if (e.target === $("#lightbox")) closeLightbox(); });
+addEventListener("keydown", e => {
+  if ($("#lightbox").hidden) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "Tab") { e.preventDefault(); $("#lbClose").focus(); } // keep focus inside the viewer
+});
+
+$("#row").addEventListener("click", e => {
+  const z = e.target.closest(".zoom");
+  if (z) {
+    const h = HEROES.find(x => x.id === z.dataset.id);
+    return openLightbox(h.name + " · " + h.role, [
+      { name: h.name, src: h.imageBefore, caption: "Before" },
+      { name: h.name, src: h.image, caption: "Revamp" }
+    ]);
+  }
+  const v = e.target.closest(".vote");
+  if (v) return vote(v.dataset.id);
+  const f = e.target.closest(".face");
+  if (f) {
+    const id = f.closest(".card").dataset.id;
+    openId = openId === id ? null : id;
+    update();
+  }
+});
+$("#nextRow").addEventListener("click", e => {
+  const t = e.target.closest(".tile");
+  if (t) pickNext(t.dataset.choice);
+});
+
+/* ---------- Heroes in the game (small name tiles that expand) ---------- */
+function buildRoster() {
+  $("#roster").innerHTML = ROSTER.map((r, i) =>
+    '<div class="rc" data-i="' + i + '">' +
+      '<button class="rc-name" type="button" aria-expanded="false" aria-controls="r-' + i + '">' + esc(r.name) + "</button>" +
+      '<div class="rc-body" id="r-' + i + '" hidden>' +
+        '<button class="rc-photo" type="button" data-zoom="' + i + '" aria-label="Enlarge photo of ' + esc(r.name) + '"><span class="initial">' + initial(r.name) + "</span>" +
+          (r.image ? '<img src="' + esc(r.image) + '" alt="Photo of ' + esc(r.name) + '" onerror="this.remove()">' : "") + "</button>" +
+        '<div class="rc-info">' + (r.isNew ? '<span class="new-tag">New</span>' : "") +
+          "<dl><dt>Name</dt><dd>" + esc(r.name) + "</dd><dt>Class</dt><dd>" + esc(r.cls) +
+          "</dd><dt>College</dt><dd>" + esc(r.college) + "</dd><dt>Power / Weapon</dt><dd>" + esc(r.power) + "</dd></dl>" +
+        "</div>" +
+      "</div></div>").join("");
+}
+let rosterOpen = null;
+$("#roster").addEventListener("click", e => {
+  const p = e.target.closest(".rc-photo");
+  if (p) {
+    const r = ROSTER[p.dataset.zoom];
+    return openLightbox(r.name + " · " + r.cls, r.before
+      ? [{ name: r.name, src: r.before, caption: "Before" }, { name: r.name, src: r.image, caption: "Revamp" }]
+      : [{ name: r.name, src: r.image, caption: r.college + " · " + r.power }]);
+  }
+  const b = e.target.closest(".rc-name");
+  if (!b) return;
+  const i = b.closest(".rc").dataset.i;
+  rosterOpen = rosterOpen === i ? null : i;
+  document.querySelectorAll(".rc").forEach(rc => {
+    const open = rc.dataset.i === rosterOpen;
+    rc.classList.toggle("open", open);
+    rc.querySelector(".rc-name").setAttribute("aria-expanded", open);
+    rc.querySelector(".rc-body").hidden = !open;
+  });
+});
+
+/* ---------- Profile (top right) ---------- */
+const FIELDS = [["Username", "username"], ["Email", "email"], ["In-game ID", "ingameId"], ["Mobile", "mobile"],
+                ["Gender", "gender"], ["Address", "address"], ["Server", "server"]];
+const btn = $("#profileBtn"), pop = $("#profilePop");
+function setPop(open) { pop.hidden = !open; btn.setAttribute("aria-expanded", open); }
+btn.addEventListener("click", e => { e.stopPropagation(); setPop(pop.hidden); });
+document.addEventListener("click", e => { if (!pop.hidden && !pop.contains(e.target)) setPop(false); });
+addEventListener("keydown", e => { if (e.key === "Escape") setPop(false); });
+$("#logout").addEventListener("click", () => logout());
+
+function fillProfile(user, profile) {
+  const data = Object.assign({ email: user.email }, profile || {});
+  const name = data.username || user.email;
+  $("#avatarLetter").textContent = name.charAt(0).toUpperCase();
+  $("#pName").textContent = name;
+  $("#pData").innerHTML = FIELDS.filter(f => data[f[1]])
+    .map(f => "<dt>" + f[0] + "</dt><dd>" + esc(data[f[1]]) + "</dd>").join("");
+}
+
+/* ---------- Start ---------- */
+buildChart($("#chart"), HEROES);
+build();
+buildRoster();
+update();
+
+let started = false;
+// Only signed-in users see the vote page; everyone else goes to the login page.
+onUser(async user => {
+  if (!user) { location.replace("loginform.html"); return; }
+  uid = user.uid;
+  const [profile, admin] = await Promise.all([getProfile(uid).catch(() => null), checkAdmin(uid).catch(() => false)]);
+  fillProfile(user, profile);
+  $("#adminLink").hidden = !admin;
+  $(".wrap").hidden = false;
+  if (started) return;
+  started = true;
+  const fail = e => { console.error(e); toast("Couldn’t load live votes. Check your Firestore rules."); };
+  subscribeVoting(v => { voting = v; refreshVoting(); }, fail);
+  subscribeVotes(v => { votes = v; update(); }, fail);
+  subscribeNext(v => { nextVotes = v; update(); }, fail);
+});
