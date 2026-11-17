@@ -6,7 +6,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, runTransaction, serverTimestamp,
-  collection, onSnapshot, setDoc, getDocs, writeBatch, Timestamp
+  collection, onSnapshot, setDoc, getDocs, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Paste the same config object from your Firebase project settings.
@@ -97,12 +97,8 @@ const list = (name, cb, onErr) => onSnapshot(collection(db, name),
 export const subscribeVotes = (cb, onErr) => list("votes", cb, onErr);
 export const subscribeNext = (cb, onErr) => list("nextVotes", cb, onErr);
 export const subscribeUsers = (cb, onErr) => list("users", cb, onErr);
-// Gives { open: true/false, closesAt: Date or null }
 export const subscribeVoting = (cb, onErr) =>
-  onSnapshot(doc(db, "settings", "voting"), s => {
-    const d = s.exists() ? s.data() : {};
-    cb({ open: d.open !== false, closesAt: d.closesAt && d.closesAt.toDate ? d.closesAt.toDate() : null });
-  }, onErr);
+  onSnapshot(doc(db, "settings", "voting"), s => cb(s.exists() ? s.data().open !== false : true), onErr);
 
 export const castVote = (uid, heroId) => setDoc(doc(db, "votes", uid), { heroId, updatedAt: serverTimestamp() });
 export const castNext = (uid, choice) => setDoc(doc(db, "nextVotes", uid), { choice, updatedAt: serverTimestamp() });
@@ -112,14 +108,7 @@ export const castNext = (uid, choice) => setDoc(doc(db, "nextVotes", uid), { cho
 export async function checkAdmin(uid) {
   return (await getDoc(doc(db, "admins", uid))).exists();
 }
-// Change the on/off switch and/or the closing time (Date, or null to remove it). Other fields are kept.
-export function updateVoting({ open, closesAt }) {
-  const data = { updatedAt: serverTimestamp() };
-  if (open !== undefined) data.open = open;
-  if (closesAt !== undefined) data.closesAt = closesAt ? Timestamp.fromDate(closesAt) : null;
-  return setDoc(doc(db, "settings", "voting"), data, { merge: true });
-}
-export const setVotingOpen = open => updateVoting({ open });
+export const setVotingOpen = open => setDoc(doc(db, "settings", "voting"), { open, updatedAt: serverTimestamp() });
 
 export async function resetVotes() {
   for (const name of ["votes", "nextVotes"]) {
