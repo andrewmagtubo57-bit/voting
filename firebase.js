@@ -5,7 +5,8 @@ import {
   sendPasswordResetEmail, signOut, onAuthStateChanged, deleteUser
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, runTransaction, serverTimestamp
+  getFirestore, doc, getDoc, runTransaction, serverTimestamp,
+  collection, onSnapshot, setDoc, getDocs, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Paste the same config object from your Firebase project settings.
@@ -86,6 +87,38 @@ export const onUser = callback => onAuthStateChanged(auth, callback);
 export async function getProfile(uid) {
   const snap = await getDoc(doc(db, "users", uid));
   return snap.exists() ? snap.data() : null;
+}
+
+/* ---------- Voting (live, saved online) ---------- */
+// One vote per account: the document id is the user's uid, so voting again just switches the vote.
+const list = (name, cb, onErr) => onSnapshot(collection(db, name),
+  snap => cb(snap.docs.map(d => ({ uid: d.id, ...d.data() }))), onErr);
+
+export const subscribeVotes = (cb, onErr) => list("votes", cb, onErr);
+export const subscribeNext = (cb, onErr) => list("nextVotes", cb, onErr);
+export const subscribeUsers = (cb, onErr) => list("users", cb, onErr);
+export const subscribeVoting = (cb, onErr) =>
+  onSnapshot(doc(db, "settings", "voting"), s => cb(s.exists() ? s.data().open !== false : true), onErr);
+
+export const castVote = (uid, heroId) => setDoc(doc(db, "votes", uid), { heroId, updatedAt: serverTimestamp() });
+export const castNext = (uid, choice) => setDoc(doc(db, "nextVotes", uid), { choice, updatedAt: serverTimestamp() });
+
+/* ---------- Admin ---------- */
+// An admin is any account whose uid has a document in the "admins" collection (create it in the Firebase console).
+export async function checkAdmin(uid) {
+  return (await getDoc(doc(db, "admins", uid))).exists();
+}
+export const setVotingOpen = open => setDoc(doc(db, "settings", "voting"), { open, updatedAt: serverTimestamp() });
+
+export async function resetVotes() {
+  for (const name of ["votes", "nextVotes"]) {
+    const docs = (await getDocs(collection(db, name))).docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = writeBatch(db);
+      docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
 }
 
 export function friendlyError(e) {
