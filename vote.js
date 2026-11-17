@@ -248,7 +248,7 @@ update();
 let started = false;
 // Only signed-in users see the vote page; everyone else goes to the login page.
 onUser(async user => {
-  if (!user) { location.replace("loginform.html"); return; }
+  if (!user) { location.replace("index.html"); return; }
   uid = user.uid;
   const [profile, admin] = await Promise.all([getProfile(uid).catch(() => null), checkAdmin(uid).catch(() => false)]);
   fillProfile(user, profile);
