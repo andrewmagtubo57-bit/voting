@@ -4,6 +4,7 @@ import {
 } from "./firebase.js";
 import { HEROES } from "./heroes.js";
 import { buildChart, updateChart } from "./chart.js";
+import { ROSTER } from "./roster.js";
 
 const $ = (s, r) => (r || document).querySelector(s);
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -140,9 +141,39 @@ function fillProfile(user, profile) {
     .map(f => "<dt>" + f[0] + "</dt><dd>" + esc(data[f[1]]) + "</dd>").join("");
 }
 
+/* ---------- Heroes in the game (small name tiles that expand) ---------- */
+const initial = n => (/^[A-Za-z]/.test(n) ? n.charAt(0).toUpperCase() : "?");
+function buildRoster() {
+  $("#roster").innerHTML = ROSTER.map((r, i) =>
+    '<div class="rc" data-i="' + i + '">' +
+      '<button class="rc-name" type="button" aria-expanded="false" aria-controls="r-' + i + '">' + esc(r.name) + "</button>" +
+      '<div class="rc-body" id="r-' + i + '" hidden>' +
+        '<span class="rc-photo"><span class="initial">' + initial(r.name) + "</span>" +
+          (r.image ? '<img src="' + esc(r.image) + '" alt="Photo of ' + esc(r.name) + '" onerror="this.remove()">' : "") + "</span>" +
+        '<div class="rc-info">' + (r.isNew ? '<span class="new-tag">New</span>' : "") +
+          "<dl><dt>Name</dt><dd>" + esc(r.name) + "</dd><dt>Class</dt><dd>" + esc(r.cls) +
+          "</dd><dt>College</dt><dd>" + esc(r.college) + "</dd><dt>Power / Weapon</dt><dd>" + esc(r.power) + "</dd></dl>" +
+        "</div>" +
+      "</div></div>").join("");
+}
+let rosterOpen = null;
+$("#roster").addEventListener("click", e => {
+  const b = e.target.closest(".rc-name");
+  if (!b) return;
+  const i = b.closest(".rc").dataset.i;
+  rosterOpen = rosterOpen === i ? null : i;
+  document.querySelectorAll(".rc").forEach(rc => {
+    const open = rc.dataset.i === rosterOpen;
+    rc.classList.toggle("open", open);
+    rc.querySelector(".rc-name").setAttribute("aria-expanded", open);
+    rc.querySelector(".rc-body").hidden = !open;
+  });
+});
+
 /* ---------- Start ---------- */
 buildChart($("#chart"), HEROES);
 build();
+buildRoster();
 update();
 
 let started = false;
